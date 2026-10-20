@@ -1,0 +1,50 @@
+{
+  "name": "todo-rls",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "ln -sf tsc node_modules/.bin/tsgo",
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "start": "bun run scripts/serve.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:grants": "psql \"$DATABASE_URL_OWNER\" -v ON_ERROR_STOP=1 -f db/grants.sql",
+    "db:setup": "bun run db:migrate && bun run db:grants",
+    "db:seed": "bun run db/seed.ts",
+    "db:rls-check": "bash db/rls-check.sh",
+    "auth:generate": "bunx --bun @better-auth/cli@latest generate --config src/lib/auth.ts --output src/db/schema/auth.ts"
+  },
+  "dependencies": {
+    "@better-auth-ui/core": "1.7.30",
+    "@better-auth-ui/react": "^1.7.30",
+    "@elysiajs/eden": "1.4.9",
+    "@tanstack/query-db-collection": "1.4.7",
+    "@tanstack/react-db": "0.5.11",
+    "@tanstack/react-query": "5.104.5",
+    "@tanstack/react-router": "1.170.45",
+    "@tanstack/react-router-ssr-query": "1.167.3",
+    "@tanstack/react-router-with-db": "0.1.0",
+    "@tanstack/react-start": "1.169.3",
+    "better-auth": "1.7.12",
+    "drizzle-orm": "0.45.4",
+    "drizzle-zod": "0.8.3",
+    "elysia": "1.4.30",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "@types/pg": "8",
+    "@types/react": "19",
+    "@types/react-dom": "19",
+    "@vitejs/plugin-react": "6.1.2",
+    "drizzle-kit": "0.31.11",
+    "typescript": "^7.0.2",
+    "vite": "8.3.4"
+  }
+}

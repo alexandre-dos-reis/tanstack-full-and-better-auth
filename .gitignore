@@ -1,0 +1,9 @@
+node_modules
+.devenv*
+devenv.local.nix
+.direnv
+dist
+.tanstack
+src/routeTree.gen.ts
+.env
+.env.local
