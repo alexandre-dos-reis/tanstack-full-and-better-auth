@@ -1,8 +1,13 @@
 import { Suspense, useState } from "react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useDbClient, useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useLiveSuspenseQuery, Query, useDbClient } from "@tanstack/react-db";
 import { AuthClient } from "~/lib/auth-client";
 import { AuthIso } from "~/lib/auth-iso";
+import { todosCollection } from "~/db/collections";
+
+const todosQuery = new Query()
+  .from({ todo: todosCollection })
+  .orderBy(({ todo }) => todo.createdAt, "asc");
 
 export const Route = createFileRoute("/todos")({
   beforeLoad: async ({ context }) => {
@@ -20,13 +25,7 @@ export const Route = createFileRoute("/todos")({
   // adapter streams the query result instead (the Suspense boundary below is
   // what makes that work).
   loader: async ({ context }) => {
-    // The collection is picked once the user is known. Its id and queryKey both
-    // carry the user id, so signing in as someone else resolves to a different
-    // collection rather than inheriting these rows. (Derived here rather than
-    // returned from beforeLoad: route context must be serializable for SSR, and
-    // a collection descriptor carries a factory function.)
-    const todos = context.collections.todosFor(context.user.id);
-    await context.dbClient.collection(todos).preload();
+    await context.dbClient.preloadLiveQuery({ query: todosQuery });
   },
 
   component: TodosPage,
@@ -62,16 +61,14 @@ function TodosPage() {
 }
 
 function TodoList() {
-  const { collections, user } = Route.useRouteContext();
-  // `todosFor` memoizes per user id, so this is a stable object across renders
-  // — which is what keeps the live query's identity stable.
-  const todosCollection = collections.todosFor(user.id);
+  const { user } = Route.useRouteContext();
+
   const todos = useDbClient().collection(todosCollection);
-  const [title, setTitle] = useState("");
 
   const { data } = useLiveSuspenseQuery({
-    query: (q) => q.from({ todo: todosCollection }).orderBy(({ todo }) => todo.createdAt, "asc"),
+    query: todosQuery,
   });
+  const [title, setTitle] = useState("");
 
   const completed = data.filter((todo) => todo.completed);
 
