@@ -1,13 +1,13 @@
 import { Suspense, useState } from "react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useLiveSuspenseQuery, useLiveQuery, Query, useDbClient } from "@tanstack/react-db";
+import { useLiveSuspenseQuery, Query, useDbClient } from "@tanstack/react-db";
 import { AuthClient } from "~/lib/auth-client";
 import { AuthIso } from "~/lib/auth-iso";
 import { todosCollection } from "~/db/collections";
 
-const todosQuery = new Query()
-  .from({ todo: todosCollection })
-  .orderBy(({ todo }) => todo.createdAt, "asc");
+const todosQuery = {
+  query: new Query().from({ todo: todosCollection }).orderBy(({ todo }) => todo.createdAt, "asc"),
+};
 
 export const Route = createFileRoute("/todos")({
   beforeLoad: async ({ context }) => {
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/todos")({
   // query during render instead, which pushes the snapshot through dbStream
   // chunks: a third byte layout, same end state on the client.
   loader: ({ context }) => {
-    context.dbClient.preloadLiveQuery({ query: todosQuery });
+    context.dbClient.preloadLiveQuery(todosQuery);
   },
 
   component: TodosPage,
@@ -92,9 +92,7 @@ function TodoList() {
   //
   // With the loader awaited the data is already in the collection, so both
   // hooks render identical markup and Suspense never engages.
-  const { data } = useLiveQuery({
-    query: todosQuery,
-  });
+  const { data } = useLiveSuspenseQuery(todosQuery);
   const [title, setTitle] = useState("");
 
   const completed = data.filter((todo) => todo.completed);
