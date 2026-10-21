@@ -4,7 +4,6 @@ import { DbClient } from "@tanstack/react-db";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routerWithDbClient } from "@tanstack/react-router-with-db";
-import { createCollections } from "~/db/collections";
 import { routeTree } from "./routeTree.gen";
 
 /**
@@ -27,11 +26,10 @@ export function getRouter() {
   // Registering the QueryClient as a DbClient dependency lets first-party
   // adapters (query-db-collection) pick up the per-request client themselves.
   const dbClient = new DbClient({ queryClient });
-  const collections = createCollections(queryClient);
 
   const router = createRouter({
     routeTree,
-    context: { queryClient, dbClient, collections },
+    context: { queryClient, dbClient },
     defaultPreload: "intent",
     // Let Query/DB own caching rather than the router.
     defaultPreloadStaleTime: 0,

@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useLiveSuspenseQuery, Query, useDbClient } from "@tanstack/react-db";
+import { useLiveSuspenseQuery, useLiveQuery, Query, useDbClient } from "@tanstack/react-db";
 import { AuthClient } from "~/lib/auth-client";
 import { AuthIso } from "~/lib/auth-iso";
 import { todosCollection } from "~/db/collections";
@@ -20,12 +20,25 @@ export const Route = createFileRoute("/todos")({
     return { user: session.user };
   },
 
-  // Awaiting the preload in the loader makes the rows part of the critical SSR
-  // payload: the HTML arrives with the list already rendered. Drop this and the
-  // adapter streams the query result instead (the Suspense boundary below is
-  // what makes that work).
-  loader: async ({ context }) => {
-    await context.dbClient.preloadLiveQuery({ query: todosQuery });
+  // Awaiting the preload is what decides whether the rows are part of the
+  // critical SSR payload or arrive after it. Both shapes are visible in the
+  // served HTML:
+  //
+  //   awaited   => blocking.  <ul class="todos"> sits inline in the shell, the
+  //                live query is dehydrated with its `snapshot`, and nothing
+  //                follows the $tsr-stream-boundary marker.
+  //   unawaited => streaming. The shell carries <!--$?--> plus the
+  //                "Loading todos…" fallback, the live query is dehydrated as a
+  //                pending `promise`, and the rows arrive later in a
+  //                <div hidden id="S:0"> that React splices in via $RC.
+  //
+  // Unawaited still registers the live query *here*, so it makes the critical
+  // dehydration cutoff and rides along as a promise resolved by a later inline
+  // script — no extra round-trip. Removing the call entirely registers the live
+  // query during render instead, which pushes the snapshot through dbStream
+  // chunks: a third byte layout, same end state on the client.
+  loader: ({ context }) => {
+    context.dbClient.preloadLiveQuery({ query: todosQuery });
   },
 
   component: TodosPage,
@@ -65,7 +78,21 @@ function TodoList() {
 
   const todos = useDbClient().collection(todosCollection);
 
-  const { data } = useLiveSuspenseQuery({
+  // The hook does not pick streaming vs blocking — the loader's `await` does.
+  // What it picks is the not-ready behaviour, which only shows up when the
+  // loader is unawaited:
+  //
+  //   useLiveSuspenseQuery => suspends, so React streams the real rows into the
+  //                           Suspense boundary above.
+  //   useLiveQuery         => returns data: [] right away, so the server ships
+  //                           "Nothing here yet." and the rows appear only after
+  //                           hydration. That is not blocking; it is an HTML
+  //                           document asserting something false. Gate on
+  //                           `isLoading` if you want this path.
+  //
+  // With the loader awaited the data is already in the collection, so both
+  // hooks render identical markup and Suspense never engages.
+  const { data } = useLiveQuery({
     query: todosQuery,
   });
   const [title, setTitle] = useState("");

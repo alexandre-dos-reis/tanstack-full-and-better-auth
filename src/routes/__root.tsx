@@ -2,13 +2,11 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { DbClient } from "@tanstack/react-db";
 import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import type { Collections } from "~/db/collections";
 import appCss from "~/styles.css?url";
 
 export interface RouterContext {
   queryClient: QueryClient;
   dbClient: DbClient;
-  collections: Collections;
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
