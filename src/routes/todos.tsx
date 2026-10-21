@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useLiveSuspenseQuery, Query, useDbClient } from "@tanstack/react-db";
+import { useLiveSuspenseQuery, Query } from "@tanstack/react-db";
 import { AuthClient } from "~/lib/auth-client";
 import { AuthIso } from "~/lib/auth-iso";
 import { todosCollection } from "~/db/collections";
@@ -74,9 +74,9 @@ function TodosPage() {
 }
 
 function TodoList() {
-  const { user } = Route.useRouteContext();
+  const { user, dbClient } = Route.useRouteContext();
 
-  const todos = useDbClient().collection(todosCollection);
+  const todos = dbClient.collection(todosCollection);
 
   // The hook does not pick streaming vs blocking — the loader's `await` does.
   // What it picks is the not-ready behaviour, which only shows up when the
