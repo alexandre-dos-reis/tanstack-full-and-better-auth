@@ -3,6 +3,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { DbClient } from "@tanstack/react-db";
 import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import appCss from "~/styles.css?url";
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -29,6 +32,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <main>{children}</main>
+        <TanStackDevtools
+          plugins={[
+            {
+              name: "TanStack Query",
+              render: <ReactQueryDevtoolsPanel />,
+            },
+            {
+              name: "TanStack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
         <Scripts />
       </body>
     </html>
