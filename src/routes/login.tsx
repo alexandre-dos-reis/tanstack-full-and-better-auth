@@ -38,9 +38,7 @@ function LoginPage() {
 
   const { mutate: signUpEmail, isPending: isPendingSignUpEmail } = AuthClient.useSignUpEmail({
     onError: (error) => setError(error.error.message),
-    onSuccess: () => {
-      setMode("signin");
-    },
+    onSuccess: () => setMode("signin"),
   });
 
   const isPending = isPendingSignInEmail || isPendingSignUpEmail;
