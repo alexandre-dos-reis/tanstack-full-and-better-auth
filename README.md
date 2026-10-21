@@ -15,20 +15,20 @@ Not a single todo query in `src/server/api.ts` mentions `user_id` in its
 
 ## Stack
 
-| Piece | Version | Role here |
-| --- | --- | --- |
-| devenv | 2.4 | dev shell + Postgres 17 + the three database roles |
-| Postgres | 17 | RLS policy, privilege separation |
-| drizzle-orm / drizzle-kit | 0.45 / 0.31 | schema, migrations, the RLS policy itself |
-| drizzle-zod | 0.8 | every validator derived from the table definition |
-| zod | 4 | validation at the API boundary and in the collection |
-| TanStack Start | 1.169 | SSR, custom server entry |
-| Elysia + Eden | 1.4 | the CRUD handlers, and a typed client for them |
-| TanStack Query | 5.104 | per-request cache, SSR dehydration |
-| TanStack DB | 0.15 | live queries, optimistic writes, SSR hydration |
-| better-auth | 1.7 | email/password auth, sessions |
-| @better-auth-ui/core | 1.7 | TanStack Query options for the session, client + server |
-| bun | 1.4 | package manager, script runner, production server |
+| Piece                     | Version     | Role here                                               |
+| ------------------------- | ----------- | ------------------------------------------------------- |
+| devenv                    | 2.4         | dev shell + Postgres 17 + the three database roles      |
+| Postgres                  | 17          | RLS policy, privilege separation                        |
+| drizzle-orm / drizzle-kit | 0.45 / 0.31 | schema, migrations, the RLS policy itself               |
+| drizzle-zod               | 0.8         | every validator derived from the table definition       |
+| zod                       | 4           | validation at the API boundary and in the collection    |
+| TanStack Start            | 1.169       | SSR, custom server entry                                |
+| Elysia + Eden             | 1.4         | the CRUD handlers, and a typed client for them          |
+| TanStack Query            | 5.104       | per-request cache, SSR dehydration                      |
+| TanStack DB               | 0.15        | live queries, optimistic writes, SSR hydration          |
+| better-auth               | 1.7         | email/password auth, sessions                           |
+| @better-auth-ui/core      | 1.7         | TanStack Query options for the session, client + server |
+| bun                       | 1.4         | package manager, script runner, production server       |
 
 ## Quick start
 
@@ -41,7 +41,7 @@ bun run db:seed           # alice@example.com / bob@example.com, password1234
 bun run dev               # http://localhost:3000
 ```
 
-`devenv up` with no argument starts Postgres *and* the dev server.
+`devenv up` with no argument starts Postgres _and_ the dev server.
 
 Sign in as both seeded users in two browser profiles — they see two different
 lists.
@@ -73,11 +73,11 @@ It exits non-zero if any of those stops being true.
 
 **Three roles, three jobs** (created in `devenv.nix`, granted in `db/grants.sql`):
 
-| Role | Owns / may touch | RLS |
-| --- | --- | --- |
-| `todo_owner` | owns every table; runs migrations | bypasses (table owner) |
-| `todo_auth` | `user`, `session`, `account`, `verification` | n/a — no grants on `todos` |
-| `todo_app` | `todos` only | **enforced** |
+| Role         | Owns / may touch                             | RLS                        |
+| ------------ | -------------------------------------------- | -------------------------- |
+| `todo_owner` | owns every table; runs migrations            | bypasses (table owner)     |
+| `todo_auth`  | `user`, `session`, `account`, `verification` | n/a — no grants on `todos` |
+| `todo_app`   | `todos` only                                 | **enforced**               |
 
 `src/db/index.ts` opens one pool per runtime role, so the connection serving
 todo CRUD has no grant on the auth tables, and vice versa. A SQL injection in
@@ -97,7 +97,7 @@ it a user could insert or re-parent a row into someone else's list.
 
 **Fail-closed.** `current_setting(..., true)` returns `NULL` when the GUC is
 unset, and `user_id = NULL` is never true. A handler that forgets to go through
-`withUser()` sees *zero* rows, not everyone's.
+`withUser()` sees _zero_ rows, not everyone's.
 
 **Request scoping.** `withUser()` wraps each query in a transaction and sets
 `app.user_id` with `set_config(..., true)` — transaction-local, so it cannot
@@ -105,15 +105,15 @@ leak to the next request that borrows the same pooled connection.
 
 ## Transactions
 
-`withUser()` *is* the transaction helper — it opens one, sets `app.user_id` in
+`withUser()` _is_ the transaction helper — it opens one, sets `app.user_id` in
 it, and hands you the `tx`:
 
 ```ts
 export async function withUser<T>(userId: string, fn: (tx: AppTx) => Promise<T>) {
   return appDb.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`)
-    return fn(tx)
-  })
+    await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`);
+    return fn(tx);
+  });
 }
 ```
 
@@ -135,7 +135,7 @@ Read paths use `readAsUser()`, which is the same helper with
 read handler fails with SQLSTATE `25006` instead of quietly committing. It is a
 safety assertion, not a speed-up.
 
-The thing that is easy to get wrong is scope. One `withUser` per *row* means a
+The thing that is easy to get wrong is scope. One `withUser` per _row_ means a
 five-row mutation is five transactions that can half-fail. So the collection's
 write handlers don't call the single-row routes; they post the whole transaction
 to one endpoint:
@@ -152,7 +152,7 @@ this matters for.
 
 RLS and the transaction compose, which gives a nice property: a batch that
 touches even one row you don't own fails the ownership check, 404s, and leaves
-*nothing* behind — not the rows you did own.
+_nothing_ behind — not the rows you did own.
 
 The single-row `POST/PATCH/DELETE /api/todos/:id` routes are still there for
 external clients; each is its own transaction.
@@ -170,7 +170,7 @@ be served out of another's cache.
   router context, wraps the app in `DbProvider`, dehydrates critical collection
   state and streams queries discovered later in the render.
 - Collections are built by `createCollections(queryClient)` rather than as
-  module-level singletons, because a query collection needs *this request's*
+  module-level singletons, because a query collection needs _this request's_
   QueryClient. The `DbClient` is also constructed with `{ queryClient }`, which
   first-party adapters read via `client.getDependency('queryClient')`.
 - `/todos` awaits `dbClient.collection(collections.todos).preload()` in its
@@ -228,7 +228,7 @@ scripts/serve.ts        production server (bun run build && bun run start)
   instead.
 - **The session query comes from `@better-auth-ui/core`, not hand-rolled.**
   `sessionOptions(authClient)` in the browser and `sessionOptionsServer(auth,
-  { headers })` on the server share one query key (`['auth', 'getSession']`), so
+{ headers })` on the server share one query key (`['auth', 'getSession']`), so
   what SSR resolves hydrates straight into the client cache. The server half
   calls `auth.api.getSession` **in process** — no HTTP hop and no cookie
   forwarding to get wrong — which is why this project has no `/api/me` endpoint
@@ -260,7 +260,7 @@ scripts/serve.ts        production server (bun run build && bun run start)
   so the object stays stable for the live query's identity.
 - **Mutation handlers write through instead of refetching.** Each returns
   `{ refetch: false }` after `collection.utils.writeInsert/writeUpdate/
-  writeDelete`. Return nothing and the query collection re-runs `queryFn` after
+writeDelete`. Return nothing and the query collection re-runs `queryFn` after
   every mutation, and warns that the auto-refetch goes away in TanStack DB v1.0.
   Writing the server's own row into synced state avoids the extra round trip and
   still picks up server-generated columns like `updatedAt`.

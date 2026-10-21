@@ -1,17 +1,18 @@
-import { Suspense, useState } from 'react'
-import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useDbClient, useLiveSuspenseQuery } from '@tanstack/react-db'
-import { authClient } from '~/lib/auth-client'
-import { authQueryKeys } from '~/lib/session'
-import { ensureSessionIso } from '~/lib/auth-iso';
-import { useSession, useSignOut } from "@better-auth-ui/react"
+import { Suspense, useState } from "react";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { useDbClient, useLiveSuspenseQuery } from "@tanstack/react-db";
+import { AuthClient } from "~/lib/auth-client";
+import { AuthIso } from "~/lib/auth-iso";
 
-export const Route = createFileRoute('/todos')({
+export const Route = createFileRoute("/todos")({
   beforeLoad: async ({ context }) => {
-    const session = await ensureSessionIso(context.queryClient)
+    const session = await AuthIso.ensureSession(context.queryClient);
 
-    if (!session) throw redirect({ to: '/login' })
-    return { user: session.user }
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+
+    return { user: session.user };
   },
 
   // Awaiting the preload in the loader makes the rows part of the critical SSR
@@ -24,23 +25,22 @@ export const Route = createFileRoute('/todos')({
     // collection rather than inheriting these rows. (Derived here rather than
     // returned from beforeLoad: route context must be serializable for SSR, and
     // a collection descriptor carries a factory function.)
-    const todos = context.collections.todosFor(context.user.id)
-    await context.dbClient.collection(todos).preload()
+    const todos = context.collections.todosFor(context.user.id);
+    await context.dbClient.collection(todos).preload();
   },
 
   component: TodosPage,
-})
+});
 
 function TodosPage() {
-  const { user } = Route.useRouteContext()
-  const router = useRouter()
+  const { user } = Route.useRouteContext();
+  const router = useRouter();
 
-  const { mutate: signOut } = useSignOut(authClient, {
+  const { mutate: signOut } = AuthClient.useSignOut({
     onSettled: async () => {
-      await router.navigate({ to: '/login' })
-    }
-  })
-
+      await router.navigate({ to: "/login" });
+    },
+  });
 
   return (
     <>
@@ -49,10 +49,7 @@ function TodosPage() {
           <h1>Todos</h1>
           <span className="who">{user.email}</span>
         </div>
-        <button
-          className="ghost"
-          onClick={() => signOut()}
-        >
+        <button className="ghost" onClick={() => signOut()}>
           Sign out
         </button>
       </nav>
@@ -61,29 +58,28 @@ function TodosPage() {
         <TodoList />
       </Suspense>
     </>
-  )
+  );
 }
 
 function TodoList() {
-  const { collections, user } = Route.useRouteContext()
+  const { collections, user } = Route.useRouteContext();
   // `todosFor` memoizes per user id, so this is a stable object across renders
   // — which is what keeps the live query's identity stable.
-  const todosCollection = collections.todosFor(user.id)
-  const todos = useDbClient().collection(todosCollection)
-  const [title, setTitle] = useState('')
+  const todosCollection = collections.todosFor(user.id);
+  const todos = useDbClient().collection(todosCollection);
+  const [title, setTitle] = useState("");
 
   const { data } = useLiveSuspenseQuery({
-    query: (q) =>
-      q.from({ todo: todosCollection }).orderBy(({ todo }) => todo.createdAt, 'asc'),
-  })
+    query: (q) => q.from({ todo: todosCollection }).orderBy(({ todo }) => todo.createdAt, "asc"),
+  });
 
-  const completed = data.filter((todo) => todo.completed)
+  const completed = data.filter((todo) => todo.completed);
 
   function add(e: React.ChangeEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const trimmed = title.trim()
-    if (!trimmed) return
-    const now = new Date()
+    e.preventDefault();
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const now = new Date();
     // Optimistic insert. The collection's onInsert posts to /api/todos and
     // rolls this back if the server rejects it.
     todos.insert({
@@ -93,8 +89,8 @@ function TodoList() {
       completed: false,
       createdAt: now,
       updatedAt: now,
-    })
-    setTitle('')
+    });
+    setTitle("");
   }
 
   return (
@@ -127,14 +123,14 @@ function TodoList() {
         ) : (
           <ul className="todos">
             {data.map((todo) => (
-              <li key={todo.id} className={todo.completed ? 'done' : undefined}>
+              <li key={todo.id} className={todo.completed ? "done" : undefined}>
                 <input
                   type="checkbox"
                   checked={todo.completed}
-                  aria-label={`Mark "${todo.title}" ${todo.completed ? 'incomplete' : 'complete'}`}
+                  aria-label={`Mark "${todo.title}" ${todo.completed ? "incomplete" : "complete"}`}
                   onChange={() =>
                     todos.update(todo.id, (draft) => {
-                      draft.completed = !draft.completed
+                      draft.completed = !draft.completed;
                     })
                   }
                 />
@@ -148,5 +144,5 @@ function TodoList() {
         )}
       </div>
     </>
-  )
+  );
 }

@@ -2,10 +2,10 @@ import {
   createServerEntry,
   createStartHandler,
   defaultStreamHandler,
-} from '@tanstack/react-start/server'
-import { api } from '~/server/api'
+} from "@tanstack/react-start/server";
+import { api } from "~/server/api";
 
-const startHandler = createStartHandler(defaultStreamHandler)
+const startHandler = createStartHandler(defaultStreamHandler);
 
 /**
  * Custom server entry: Elysia owns /api/**, TanStack Start owns everything else
@@ -13,10 +13,10 @@ const startHandler = createStartHandler(defaultStreamHandler)
  */
 export default createServerEntry({
   fetch(request, opts) {
-    const { pathname } = new URL(request.url)
-    if (pathname === '/api' || pathname.startsWith('/api/')) {
-      return api.handle(request)
+    const { pathname } = new URL(request.url);
+    if (pathname === "/api" || pathname.startsWith("/api/")) {
+      return api.handle(request);
     }
-    return startHandler(request, opts)
+    return startHandler(request, opts);
   },
-})
+});

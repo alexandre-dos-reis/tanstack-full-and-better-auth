@@ -1,10 +1,11 @@
-import { QueryClient } from '@tanstack/react-query'
-import { DbClient } from '@tanstack/react-db'
-import { createRouter } from '@tanstack/react-router'
-import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
-import { routerWithDbClient } from '@tanstack/react-router-with-db'
-import { createCollections } from '~/db/collections'
-import { routeTree } from './routeTree.gen'
+import { setupMutationInvalidation } from "@better-auth-ui/core";
+import { QueryClient } from "@tanstack/react-query";
+import { DbClient } from "@tanstack/react-db";
+import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { routerWithDbClient } from "@tanstack/react-router-with-db";
+import { createCollections } from "~/db/collections";
+import { routeTree } from "./routeTree.gen";
 
 /**
  * Runs once per SSR request and once in the browser, so the QueryClient, the
@@ -15,33 +16,39 @@ import { routeTree } from './routeTree.gen'
 export function getRouter() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000 } },
-  })
+  });
+
+  // Teaches the mutation cache to honour the `meta.awaits` / `meta.removes`
+  // hints the auth mutations carry: without it nothing ever invalidates the
+  // ["auth","getSession"] query, so a fresh sign-in still reads the stale
+  // `null` session and every guarded route bounces back to /login.
+  setupMutationInvalidation(queryClient);
 
   // Registering the QueryClient as a DbClient dependency lets first-party
   // adapters (query-db-collection) pick up the per-request client themselves.
-  const dbClient = new DbClient({ queryClient })
-  const collections = createCollections(queryClient)
+  const dbClient = new DbClient({ queryClient });
+  const collections = createCollections(queryClient);
 
   const router = createRouter({
     routeTree,
     context: { queryClient, dbClient, collections },
-    defaultPreload: 'intent',
+    defaultPreload: "intent",
     // Let Query/DB own caching rather than the router.
     defaultPreloadStaleTime: 0,
     scrollRestoration: true,
-  })
+  });
 
   // Must come after createRouter: it subscribes to router events to
   // dehydrate/hydrate around each navigation.
-  setupRouterSsrQueryIntegration({ router, queryClient })
+  setupRouterSsrQueryIntegration({ router, queryClient });
 
   // Adds dbClient to context, wraps the app in DbProvider, dehydrates critical
   // state and streams queries discovered later in the render.
-  return routerWithDbClient(router, dbClient)
+  return routerWithDbClient(router, dbClient);
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface Register {
-    router: ReturnType<typeof getRouter>
+    router: ReturnType<typeof getRouter>;
   }
 }

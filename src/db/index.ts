@@ -1,13 +1,13 @@
-import { sql } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import type { PgTransactionConfig } from 'drizzle-orm/pg-core'
-import { Pool } from 'pg'
-import * as authSchema from './schema/auth'
-import * as todoSchema from './schema/todos'
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import type { PgTransactionConfig } from "drizzle-orm/pg-core";
+import { Pool } from "pg";
+import * as authSchema from "./schema/auth";
+import * as todoSchema from "./schema/todos";
 
 function pool(url: string | undefined, name: string) {
-  if (!url) throw new Error(`Missing ${name}. Are you inside the devenv shell?`)
-  return new Pool({ connectionString: url, max: 10 })
+  if (!url) throw new Error(`Missing ${name}. Are you inside the devenv shell?`);
+  return new Pool({ connectionString: url, max: 10 });
 }
 
 /**
@@ -19,14 +19,14 @@ function pool(url: string | undefined, name: string) {
  * it. Neither one can read the other's tables, so an injection or a forgotten
  * WHERE clause in todo code cannot reach password hashes or session tokens.
  */
-export const authDb = drizzle(pool(process.env.DATABASE_URL_AUTH, 'DATABASE_URL_AUTH'), {
+export const authDb = drizzle(pool(process.env.DATABASE_URL_AUTH, "DATABASE_URL_AUTH"), {
   schema: authSchema,
-})
+});
 
-const appPool = pool(process.env.DATABASE_URL_APP, 'DATABASE_URL_APP')
-export const appDb = drizzle(appPool, { schema: todoSchema })
+const appPool = pool(process.env.DATABASE_URL_APP, "DATABASE_URL_APP");
+export const appDb = drizzle(appPool, { schema: todoSchema });
 
-export type AppTx = Parameters<Parameters<typeof appDb.transaction>[0]>[0]
+export type AppTx = Parameters<Parameters<typeof appDb.transaction>[0]>[0];
 
 /**
  * Runs `fn` in a transaction with `app.user_id` set to `userId`, which is what
@@ -49,14 +49,14 @@ async function inUserTransaction<T>(
 ): Promise<T> {
   return appDb.transaction(async (tx) => {
     // Parameterised, so a hostile user id cannot escape into the SQL.
-    await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`)
-    return fn(tx)
-  }, config)
+    await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`);
+    return fn(tx);
+  }, config);
 }
 
 /** Read-write: use for inserts, updates and deletes. */
 export function withUser<T>(userId: string, fn: (tx: AppTx) => Promise<T>): Promise<T> {
-  return inUserTransaction(userId, fn)
+  return inUserTransaction(userId, fn);
 }
 
 /**
@@ -65,7 +65,7 @@ export function withUser<T>(userId: string, fn: (tx: AppTx) => Promise<T>): Prom
  * A safety assertion, not a speed-up — the round trips are the same.
  */
 export function readAsUser<T>(userId: string, fn: (tx: AppTx) => Promise<T>): Promise<T> {
-  return inUserTransaction(userId, fn, { accessMode: 'read only' })
+  return inUserTransaction(userId, fn, { accessMode: "read only" });
 }
 
-export { authSchema, todoSchema }
+export { authSchema, todoSchema };

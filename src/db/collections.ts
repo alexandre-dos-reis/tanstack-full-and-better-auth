@@ -1,8 +1,8 @@
-import { queryCollectionOptions } from '@tanstack/query-db-collection'
-import type { QueryClient } from '@tanstack/react-query'
-import { collectionOptions } from '@tanstack/react-db'
-import { todoSchema } from '~/lib/validators'
-import { apiClient, unwrap } from '~/server/client'
+import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import type { QueryClient } from "@tanstack/react-query";
+import { collectionOptions } from "@tanstack/react-db";
+import { todoSchema } from "~/lib/validators";
+import { apiClient, unwrap } from "~/server/client";
 
 /**
  * Collections are built per request, and keyed per user.
@@ -30,15 +30,15 @@ function todosCollection(queryClient: QueryClient, userId: string) {
   return collectionOptions(
     queryCollectionOptions({
       id: `todos:${userId}`,
-      queryKey: ['todos', userId],
+      queryKey: ["todos", userId],
       queryClient,
       // The same drizzle-derived schema the API validates against, so a
       // server/client shape drift shows up here instead of three renders later.
       schema: todoSchema,
       getKey: (todo) => todo.id,
       queryFn: async () => {
-        const client = await apiClient()
-        return unwrap(await client.api.todos.get())
+        const client = await apiClient();
+        return unwrap(await client.api.todos.get());
       },
 
       // Write path. Each handler posts the whole transaction to
@@ -54,7 +54,7 @@ function todosCollection(queryClient: QueryClient, userId: string) {
       // away in v1.0). Writing through is cheaper and just as correct — the
       // response already carries server-generated columns like `updatedAt`.
       onInsert: async ({ transaction, collection }) => {
-        const client = await apiClient()
+        const client = await apiClient();
         const { inserted } = unwrap(
           await client.api.todos.batch.post({
             // ids are client-generated, so the optimistic rows and the stored
@@ -64,60 +64,60 @@ function todosCollection(queryClient: QueryClient, userId: string) {
               title: m.modified.title,
             })),
           }),
-        )
-        await collection.utils.writeInsert(inserted)
-        return { refetch: false }
+        );
+        await collection.utils.writeInsert(inserted);
+        return { refetch: false };
       },
 
       onUpdate: async ({ transaction, collection }) => {
-        const client = await apiClient()
+        const client = await apiClient();
         const { updated } = unwrap(
           await client.api.todos.batch.post({
             update: transaction.mutations.map((m) => {
-              const { title, completed } = m.changes
+              const { title, completed } = m.changes;
               return {
                 id: m.key,
                 ...(title !== undefined && { title }),
                 ...(completed !== undefined && { completed }),
-              }
+              };
             }),
           }),
-        )
-        await collection.utils.writeUpdate(updated)
-        return { refetch: false }
+        );
+        await collection.utils.writeUpdate(updated);
+        return { refetch: false };
       },
 
       onDelete: async ({ transaction, collection }) => {
-        const client = await apiClient()
+        const client = await apiClient();
         const { deleted } = unwrap(
           await client.api.todos.batch.post({
             delete: transaction.mutations.map((m) => m.key),
           }),
-        )
-        await collection.utils.writeDelete(deleted.map((row) => row.id))
-        return { refetch: false }
+        );
+        await collection.utils.writeDelete(deleted.map((row) => row.id));
+        return { refetch: false };
       },
-  }),
-  )
+    }),
+  );
 }
 
 /** Inferred from the factory rather than restated — the generics are hairy. */
-type TodosCollection = ReturnType<typeof todosCollection>
+type TodosCollection = ReturnType<typeof todosCollection>;
 
 export function createCollections(queryClient: QueryClient) {
-  const byUser = new Map<string, TodosCollection>()
+  const byUser = new Map<string, TodosCollection>();
 
   return {
     /** The caller's own todos. One collection per user id, memoized. */
     todosFor(userId: string): TodosCollection {
-      let descriptor = byUser.get(userId)
+      let descriptor = byUser.get(userId);
       if (!descriptor) {
-        descriptor = todosCollection(queryClient, userId)
-        byUser.set(userId, descriptor)
+        descriptor = todosCollection(queryClient, userId);
+        byUser.set(userId, descriptor);
       }
-      return descriptor
+      return descriptor;
     },
-  }
+  };
 }
 
-export type Collections = ReturnType<typeof createCollections>
+export type Collections = ReturnType<typeof createCollections>;

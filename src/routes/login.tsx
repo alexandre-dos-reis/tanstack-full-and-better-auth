@@ -1,72 +1,84 @@
-import { useState } from 'react'
-import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { authClient } from '~/lib/auth-client'
-import { authQueryKeys, sessionQueryOptions } from '~/lib/session'
+import { useState } from "react";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { AuthClient } from "~/lib/auth-client";
+import { AuthIso } from "~/lib/auth-iso";
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   beforeLoad: async ({ context }) => {
-    const session = await context.queryClient.query(await sessionQueryOptions())
-    if (session) throw redirect({ to: '/todos' })
+    const session = await AuthIso.ensureSession(context.queryClient);
+
+    if (session) {
+      throw redirect({ to: "/todos" });
+    }
   },
   component: LoginPage,
-})
+});
 
 function LoginPage() {
-  const { queryClient } = Route.useRouteContext()
-  const router = useRouter()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const context = Route.useRouteContext();
+  const router = useRouter();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [error, setError] = useState<string | null>(null);
 
-  async function submit(e: React.ChangeEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const email = String(form.get('email') ?? '')
-    const password = String(form.get('password') ?? '')
-    const name = String(form.get('name') ?? '') || email.split('@')[0]!
+  const { mutate: signInEmail, isPending: isPendingSignInEmail } = AuthClient.useSignInEmail({
+    onError: (error) => setError(error.error.message),
+    onSuccess: async () => {
+      // The route guards read the session with `ensureQueryData`, which hands
+      // back whatever is cached even once it is stale -- so the invalidation
+      // the sign-in mutation triggers is not enough on its own: the cached
+      // `null` from this page's own beforeLoad would send /todos right back
+      // here. Write the real session into the cache before navigating.
+      // `staleTime: 0` matters: the router's QueryClient defaults to 30s, and
+      // fetchQuery honours that default, which would hand back the same stale
+      // `null` instead of hitting the network.
+      await AuthClient.prefetchSession(context.queryClient);
+      await router.navigate({ to: "/todos" });
+    },
+  });
 
-    setPending(true)
-    setError(null)
-    const res =
-      mode === 'signin'
-        ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({ email, password, name })
-    setPending(false)
+  const { mutate: signUpEmail, isPending: isPendingSignUpEmail } = AuthClient.useSignUpEmail({
+    onError: (error) => setError(error.error.message),
+    onSuccess: () => {
+      setMode("signin");
+    },
+  });
 
-    if (res.error) {
-      setError(res.error.message ?? 'Something went wrong')
-      return
+  const isPending = isPendingSignInEmail || isPendingSignUpEmail;
+
+  function submit(e: React.ChangeEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") ?? "");
+    const password = String(form.get("password") ?? "");
+    const name = String(form.get("name") ?? "") || email.split("@")[0]!;
+
+    setError(null);
+
+    if (mode === "signin") {
+      signInEmail({ email, password });
+    } else {
+      signUpEmail({ email, password, name });
     }
-
-    // `queryClient.query()` honours staleTime, and this page's own guard just
-    // cached a "signed out" session — so without removing that entry the
-    // /todos guard would read it and bounce us straight back here. Removing
-    // rather than invalidating keeps this correct whichever read API the guard
-    // uses (`ensureQueryData` returns cached data even when stale).
-    queryClient.removeQueries({ queryKey: authQueryKeys.session })
-    await router.invalidate()
-    await router.navigate({ to: '/todos' })
   }
 
   return (
     <>
-      <h1>{mode === 'signin' ? 'Sign in' : 'Create an account'}</h1>
+      <h1>{mode === "signin" ? "Sign in" : "Create an account"}</h1>
       <p className="sub">
-        Two accounts see two different todo lists — enforced by Postgres, not by
-        the query code.
+        Two accounts see two different todo lists — enforced by Postgres, not by the query code.
       </p>
 
       <div className="tabs">
         <button
-          className={mode === 'signin' ? '' : 'ghost'}
-          onClick={() => setMode('signin')}
+          className={mode === "signin" ? "" : "ghost"}
+          onClick={() => setMode("signin")}
           type="button"
         >
           Sign in
         </button>
         <button
-          className={mode === 'signup' ? '' : 'ghost'}
-          onClick={() => setMode('signup')}
+          className={mode === "signup" ? "" : "ghost"}
+          onClick={() => setMode("signup")}
           type="button"
         >
           Sign up
@@ -74,7 +86,7 @@ function LoginPage() {
       </div>
 
       <form className="card" onSubmit={submit}>
-        {mode === 'signup' && (
+        {mode === "signup" && (
           <fieldset>
             <label htmlFor="name">Name</label>
             <input id="name" name="name" type="text" autoComplete="name" />
@@ -92,14 +104,14 @@ function LoginPage() {
             type="password"
             required
             minLength={8}
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
           />
         </fieldset>
         {error && <p className="err">{error}</p>}
-        <button type="submit" disabled={pending}>
-          {pending ? '…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+        <button type="submit" disabled={isPending}>
+          {isPending ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
       </form>
     </>
-  )
+  );
 }

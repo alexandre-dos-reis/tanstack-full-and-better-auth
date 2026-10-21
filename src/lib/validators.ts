@@ -1,6 +1,6 @@
-import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod'
-import { z } from 'zod'
-import { todos } from '~/db/schema/todos'
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import { z } from "zod";
+import { todos } from "~/db/schema/todos";
 
 /**
  * Every schema here is derived from the drizzle table definition, so the column
@@ -16,8 +16,8 @@ import { todos } from '~/db/schema/todos'
  * response. TanStack Start's SSR serializer preserves Date through
  * dehydration too, so the collection sees the same type everywhere.
  */
-export const todoSchema = createSelectSchema(todos)
-export type Todo = z.infer<typeof todoSchema>
+export const todoSchema = createSelectSchema(todos);
+export type Todo = z.infer<typeof todoSchema>;
 
 /**
  * Create input.
@@ -32,30 +32,29 @@ export type Todo = z.infer<typeof todoSchema>
  * ever regresses.
  */
 export const todoCreateSchema = createInsertSchema(todos, {
-  title: (s) => s.trim().min(1, 'Title is required').max(200),
-}).pick({ id: true, title: true })
-export type TodoCreate = z.infer<typeof todoCreateSchema>
+  title: (s) => s.trim().min(1, "Title is required").max(200),
+}).pick({ id: true, title: true });
+export type TodoCreate = z.infer<typeof todoCreateSchema>;
 
 /** Patch fields: all optional, server-controlled columns excluded. */
 export const todoPatchSchema = createUpdateSchema(todos, {
-  title: (s) => s.trim().min(1, 'Title is required').max(200),
-}).pick({ title: true, completed: true })
+  title: (s) => s.trim().min(1, "Title is required").max(200),
+}).pick({ title: true, completed: true });
 
-const hasSomeField = (v: Record<string, unknown>) =>
-  Object.values(v).some((x) => x !== undefined)
+const hasSomeField = (v: Record<string, unknown>) => Object.values(v).some((x) => x !== undefined);
 
 /** Body of `PATCH /api/todos/:id`. */
 export const todoUpdateSchema = todoPatchSchema.refine(hasSomeField, {
-  message: 'Nothing to update',
-})
-export type TodoUpdate = z.infer<typeof todoUpdateSchema>
+  message: "Nothing to update",
+});
+export type TodoUpdate = z.infer<typeof todoUpdateSchema>;
 
 /** One entry in a batch `update`: the same patch fields, plus which row. */
 export const todoBatchUpdateSchema = todoPatchSchema
   .extend({ id: z.uuid() })
   .refine(({ id: _id, ...changes }) => hasSomeField(changes), {
-    message: 'Nothing to update',
-  })
+    message: "Nothing to update",
+  });
 
 /**
  * Body of `POST /api/todos/batch` — the whole thing runs in one Postgres
@@ -67,10 +66,9 @@ export const todoBatchSchema = z
     update: z.array(todoBatchUpdateSchema).optional(),
     delete: z.array(z.uuid()).optional(),
   })
-  .refine(
-    (b) => (b.insert?.length ?? 0) + (b.update?.length ?? 0) + (b.delete?.length ?? 0) > 0,
-    { message: 'Batch is empty' },
-  )
-export type TodoBatch = z.infer<typeof todoBatchSchema>
+  .refine((b) => (b.insert?.length ?? 0) + (b.update?.length ?? 0) + (b.delete?.length ?? 0) > 0, {
+    message: "Batch is empty",
+  });
+export type TodoBatch = z.infer<typeof todoBatchSchema>;
 
-export const todoParamsSchema = z.object({ id: z.uuid() })
+export const todoParamsSchema = z.object({ id: z.uuid() });
